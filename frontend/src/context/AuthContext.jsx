@@ -11,24 +11,24 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token') || null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const verifyToken = async () => {
-      const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        try {
-          const res = await authAPI.getMe();
-          if (res.data.success && res.data.user) {
-            setUser(res.data.user);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-          }
-        } catch (error) {
-          console.error('Session expired or invalid token');
-          logout();
+  const verifyToken = async () => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      try {
+        const res = await authAPI.getMe();
+        if (res.data.success && res.data.user) {
+          setUser(res.data.user);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
         }
+      } catch (error) {
+        console.error('Session expired or invalid token');
+        logout();
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     verifyToken();
 
     const handleAuthLogout = () => {
@@ -74,12 +74,14 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     isAuthenticated: !!token && !!user,
-    isAdmin: user?.role === 'admin',
+    isAdmin: user?.role === 'admin' || user?.role === 'super_admin',
+    isSuperAdmin: user?.role === 'super_admin',
     isUser: user?.role === 'user',
     login,
     register,
     logout,
     updateUserProfile,
+    refreshUser: verifyToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

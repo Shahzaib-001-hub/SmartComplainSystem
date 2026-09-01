@@ -23,8 +23,10 @@ import ComplaintDetailModal from '../components/complaints/ComplaintDetailModal'
 import StatusUpdateModal from '../components/complaints/StatusUpdateModal';
 import UserTable from '../components/users/UserTable';
 import { complaintAPI, userAPI, statsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const AdminDashboard = () => {
+  const { user: currentUser, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ const AdminDashboard = () => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
   const [alertMessage, setAlertMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchStats = async () => {
     try {
@@ -109,64 +112,87 @@ const AdminDashboard = () => {
 
   const handleApproveUser = async (targetUser) => {
     try {
+      setErrorMessage('');
       const res = await userAPI.approve(targetUser._id);
       if (res.data.success) {
         setAlertMessage(`User ${targetUser.name} approved successfully!`);
         refreshAll();
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage(err.response?.data?.message || 'Failed to approve user');
     }
   };
 
   const handleRejectUser = async (targetUser) => {
     try {
+      setErrorMessage('');
       const res = await userAPI.reject(targetUser._id);
       if (res.data.success) {
         setAlertMessage(`User ${targetUser.name} registration rejected.`);
         refreshAll();
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage(err.response?.data?.message || 'Failed to reject user');
     }
   };
 
   const handleToggleUserStatus = async (targetUser) => {
     try {
+      setErrorMessage('');
       const res = await userAPI.toggleStatus(targetUser._id);
       if (res.data.success) {
         setAlertMessage(`User status updated.`);
         refreshAll();
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage(err.response?.data?.message || 'Failed to update user status');
     }
   };
 
   const handleUpdateUserRole = async (targetUser, newRole) => {
     try {
+      setErrorMessage('');
+      const isPromotingToAdmin = newRole === 'admin' && targetUser.role === 'user';
+      const promptText = isPromotingToAdmin
+        ? `Are you sure you want to promote ${targetUser.name} to Administrator?\n\nNOTE: Promoting an Admin will automatically grant you Super Admin authority.`
+        : `Are you sure you want to change ${targetUser.name}'s role to ${newRole}?`;
+
+      if (!window.confirm(promptText)) {
+        return;
+      }
+
       const res = await userAPI.updateRole(targetUser._id, { role: newRole });
       if (res.data.success) {
-        setAlertMessage(`User role updated to ${newRole}.`);
+        setAlertMessage(res.data.message || `User role updated to ${newRole}.`);
+        if (res.data.creatorElevated && refreshUser) {
+          await refreshUser();
+        }
         refreshAll();
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage(err.response?.data?.message || 'Failed to update user role');
     }
   };
 
   const handleDeleteUser = async (targetUser) => {
-    if (!window.confirm(`Are you sure you want to delete user ${targetUser.name}?`)) {
+    const isTargetAdmin = targetUser.role === 'admin' || targetUser.role === 'super_admin';
+    const confirmMsg = isTargetAdmin
+      ? `CAUTION: Are you sure you want to permanently delete ADMINISTRATOR ${targetUser.name}?`
+      : `Are you sure you want to delete user ${targetUser.name}?`;
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
+
     try {
+      setErrorMessage('');
       const res = await userAPI.delete(targetUser._id);
       if (res.data.success) {
-        setAlertMessage(`User deleted.`);
+        setAlertMessage(res.data.message || `User deleted.`);
         refreshAll();
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage(err.response?.data?.message || 'Failed to delete user');
     }
   };
 
@@ -252,6 +278,21 @@ const AdminDashboard = () => {
               <button
                 onClick={() => setAlertMessage('')}
                 className="text-emerald-600 dark:text-emerald-400 hover:opacity-75"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="flex items-center justify-between rounded-2xl bg-rose-500/15 border border-rose-500/30 p-3.5 text-xs text-rose-800 dark:text-rose-300 animate-scale-in">
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faExclamationTriangle} className="text-rose-600 dark:text-rose-400" />
+                <span>{errorMessage}</span>
+              </div>
+              <button
+                onClick={() => setErrorMessage('')}
+                className="text-rose-600 dark:text-rose-400 hover:opacity-75"
               >
                 <FontAwesomeIcon icon={faTimes} />
               </button>

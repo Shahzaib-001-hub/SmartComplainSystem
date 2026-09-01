@@ -21,13 +21,17 @@ export const seedDatabase = async () => {
         name: adminName,
         email: adminEmail.toLowerCase(),
         password: adminPassword,
-        role: 'admin',
+        role: 'super_admin',
         status: 'active',
         department: 'IT Administration',
         studentId: 'ADM-001',
         phone: '+1 555-0199',
       });
-      console.log(`✅ Default Admin user created: ${adminEmail} (Password: ${adminPassword})`);
+      console.log(`✅ Default Super Admin user created: ${adminEmail} (Password: ${adminPassword})`);
+    } else if (existingAdmin.role !== 'super_admin') {
+      existingAdmin.role = 'super_admin';
+      await existingAdmin.save();
+      console.log(`✅ Default Admin user upgraded to Super Admin: ${adminEmail}`);
     }
 
     // Check if we need demo data

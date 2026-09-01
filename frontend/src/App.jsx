@@ -10,7 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 
 const RootRedirect = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, isAdmin, isSuperAdmin } = useAuth();
 
   if (loading) {
     return null;
@@ -20,7 +20,7 @@ const RootRedirect = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role === 'admin') {
+  if (isAdmin || isSuperAdmin || user?.role === 'admin' || user?.role === 'super_admin') {
     return <Navigate to="/admin" replace />;
   }
 
@@ -48,7 +48,7 @@ function App() {
               }
             />
 
-            {/* Admin Protected Routes */}
+            {/* Admin & Super Admin Protected Routes */}
             <Route
               path="/admin"
               element={

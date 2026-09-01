@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 export const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, isAuthenticated, isAdmin, isSuperAdmin } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,11 +19,14 @@ export const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireAdmin && user?.role !== 'admin') {
+  const userHasAdminAccess =
+    isAdmin || isSuperAdmin || user?.role === 'admin' || user?.role === 'super_admin';
+
+  if (requireAdmin && !userHasAdminAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (!requireAdmin && user?.role === 'admin' && location.pathname === '/dashboard') {
+  if (!requireAdmin && userHasAdminAccess && location.pathname === '/dashboard') {
     return <Navigate to="/admin" replace />;
   }
 

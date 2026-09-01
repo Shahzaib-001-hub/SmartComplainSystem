@@ -14,7 +14,11 @@ export const getAllUsers = async (req, res) => {
     }
 
     if (role && role !== 'all') {
-      query.role = role;
+      if (role === 'admin') {
+        query.role = { $in: ['admin', 'super_admin'] };
+      } else {
+        query.role = role;
+      }
     }
 
     if (search) {
@@ -26,7 +30,9 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
-    const users = await User.find(query).sort({ createdAt: -1 });
+    const users = await User.find(query)
+      .populate('createdBy', 'name email role')
+      .sort({ createdAt: -1 });
 
     const stats = {
       total: await User.countDocuments(),
@@ -34,7 +40,8 @@ export const getAllUsers = async (req, res) => {
       active: await User.countDocuments({ status: 'active' }),
       rejected: await User.countDocuments({ status: 'rejected' }),
       deactivated: await User.countDocuments({ status: 'deactivated' }),
-      admins: await User.countDocuments({ role: 'admin' }),
+      admins: await User.countDocuments({ role: { $in: ['admin', 'super_admin'] } }),
+      superAdmins: await User.countDocuments({ role: 'super_admin' }),
       users: await User.countDocuments({ role: 'user' }),
     };
 
@@ -43,6 +50,7 @@ export const getAllUsers = async (req, res) => {
       count: users.length,
       stats,
       users,
+      currentUserRole: req.user.role,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -54,7 +62,7 @@ export const getAllUsers = async (req, res) => {
 // @access  Private/Admin
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('createdBy', 'name email role');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -123,7 +131,23 @@ export const toggleUserStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Protect super admin or self deactivation
+    // Protect super admin from deactivation
+    if (user.role === 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'The Super Admin account cannot be deactivated.',
+      });
+    }
+
+    // Prevent regular admin from deactivating other Admins
+    if (user.role === 'admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the Super Admin has permission to deactivate other Admin accounts.',
+      });
+    }
+
+    // Protect self deactivation
     if (req.user._id.toString() === user._id.toString()) {
       return res.status(400).json({
         success: false,
@@ -145,40 +169,73 @@ export const toggleUserStatus = async (req, res) => {
   }
 };
 
-// @desc    Change user role (user <-> admin)
+// @desc    Change user role (user <-> admin, auto Super Admin creation)
 // @route   PUT /api/users/:id/role
 // @access  Private/Admin
 export const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
 
-    if (!['user', 'admin'].includes(role)) {
+    if (!['user', 'admin', 'super_admin'].includes(role)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role specified. Must be user or admin.',
+        message: 'Invalid role specified. Must be user, admin, or super_admin.',
       });
     }
 
-    const user = await User.findById(req.params.id);
+    const targetUser = await User.findById(req.params.id);
 
-    if (!user) {
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (req.user._id.toString() === user._id.toString() && role !== 'admin') {
-      return res.status(400).json({
+    // Rule: Super Admin cannot be demoted or modified by ANY other Admin
+    if (targetUser.role === 'super_admin' && role !== 'super_admin') {
+      return res.status(403).json({
         success: false,
-        message: 'You cannot remove admin privileges from yourself',
+        message: 'The Super Admin account cannot be deleted or demoted.',
       });
     }
 
-    user.role = role;
-    await user.save();
+    // Rule: Only Super Admin can demote other Admins back to User
+    if (targetUser.role === 'admin' && role === 'user') {
+      if (req.user.role !== 'super_admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: Only the Super Admin has permission to demote or manage Admin accounts.',
+        });
+      }
+    }
+
+    // Rule: When an Admin promotes someone to Admin, the creator automatically becomes the Super Admin
+    let creatorElevated = false;
+    if (role === 'admin' && targetUser.role === 'user') {
+      if (req.user.role !== 'super_admin') {
+        const creatorUser = await User.findById(req.user._id);
+        if (creatorUser) {
+          creatorUser.role = 'super_admin';
+          await creatorUser.save();
+          req.user.role = 'super_admin';
+          creatorElevated = true;
+        }
+      }
+      targetUser.createdBy = req.user._id;
+    }
+
+    targetUser.role = role;
+    await targetUser.save();
 
     res.json({
       success: true,
-      message: `User role updated to ${role}`,
-      user,
+      message: creatorElevated
+        ? `User ${targetUser.name} has been promoted to Admin. You have automatically been elevated to Super Admin!`
+        : `User role updated to ${role}`,
+      user: targetUser,
+      currentUser: {
+        _id: req.user._id,
+        role: req.user.role,
+      },
+      creatorElevated,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -190,13 +247,32 @@ export const updateUserRole = async (req, res) => {
 // @access  Private/Admin
 export const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const targetUser = await User.findById(req.params.id);
 
-    if (!user) {
+    if (!targetUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (req.user._id.toString() === user._id.toString()) {
+    // Rule: Super Admin cannot be deleted by anyone
+    if (targetUser.role === 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'The Super Admin account cannot be deleted.',
+      });
+    }
+
+    // Rule: Only Super Admin can delete other Admins
+    if (targetUser.role === 'admin') {
+      if (req.user.role !== 'super_admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: Only the Super Admin has permission to delete Admin accounts.',
+        });
+      }
+    }
+
+    // Prevent self deletion
+    if (req.user._id.toString() === targetUser._id.toString()) {
       return res.status(400).json({
         success: false,
         message: 'You cannot delete your own account',
@@ -207,7 +283,7 @@ export const deleteUser = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'User deleted successfully',
+      message: `Account for ${targetUser.name} (${targetUser.role}) has been deleted successfully`,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

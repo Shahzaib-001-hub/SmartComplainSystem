@@ -75,14 +75,26 @@ export const requireActive = (req, res, next) => {
   next();
 };
 
-// Check if user is an Administrator
+// Check if user is an Administrator (Admin or Super Admin)
 export const requireAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
     next();
   } else {
     res.status(403).json({
       success: false,
       message: 'Access denied: Administrator privileges required',
+    });
+  }
+};
+
+// Check if user is a Super Administrator
+export const requireSuperAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'super_admin') {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: 'Access denied: Super Administrator privileges required',
     });
   }
 };
