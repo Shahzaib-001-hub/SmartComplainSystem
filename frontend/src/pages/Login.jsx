@@ -6,12 +6,9 @@ import {
   faEnvelope,
   faLock,
   faCircleNotch,
-  faUserGraduate,
-  faUserTie,
   faExclamationTriangle,
   faClock,
   faArrowRight,
-  faInfoCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/common/ThemeToggle';
@@ -67,21 +64,6 @@ const Login = () => {
     }
   };
 
-  const fillCredentials = (type) => {
-    setErrorStatus(null);
-    setErrorMessage('');
-    if (type === 'admin') {
-      setEmail('admin@smartcomplaint.com');
-      setPassword('Admin@123');
-    } else if (type === 'student-active') {
-      setEmail('alex@student.com');
-      setPassword('Password@123');
-    } else if (type === 'student-pending') {
-      setEmail('sarah@student.com');
-      setPassword('Password@123');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden transition-colors">
       {/* Top right theme toggle */}
@@ -113,9 +95,6 @@ const Login = () => {
                 <div className="text-xs">
                   <p className="font-bold text-amber-900 dark:text-amber-200">Account Pending Admin Approval</p>
                   <p className="mt-1 leading-relaxed text-amber-800/90 dark:text-amber-300/90">{errorMessage}</p>
-                  <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400/80">
-                    💡 Tip: If testing, log in with Admin account to approve this user.
-                  </p>
                 </div>
               </div>
             </div>
@@ -195,39 +174,6 @@ const Login = () => {
               )}
             </button>
           </form>
-
-          <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center mb-2.5 flex items-center justify-center gap-1.5">
-              <FontAwesomeIcon icon={faInfoCircle} className="text-indigo-600 dark:text-indigo-400" />
-              Quick Demo Accounts
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => fillCredentials('admin')}
-                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/20 text-[11px] font-semibold transition-colors"
-              >
-                <FontAwesomeIcon icon={faUserTie} />
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => fillCredentials('student-active')}
-                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20 text-[11px] font-semibold transition-colors"
-              >
-                <FontAwesomeIcon icon={faUserGraduate} />
-                Active Student
-              </button>
-              <button
-                type="button"
-                onClick={() => fillCredentials('student-pending')}
-                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/20 text-[11px] font-semibold transition-colors"
-              >
-                <FontAwesomeIcon icon={faClock} />
-                Pending Demo
-              </button>
-            </div>
-          </div>
 
           <div className="mt-6 text-center text-xs text-slate-600 dark:text-slate-400">
             Don't have an account yet?{' '}
