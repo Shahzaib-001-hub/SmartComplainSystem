@@ -32,6 +32,16 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Ensure DB is connected for incoming requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -52,16 +62,19 @@ app.use('/api/stats', statsRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+// Start server when run directly (local / Node server)
 const startServer = async () => {
   const conn = await connectDB();
   if (conn) {
     await seedDatabase();
   }
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Smart Complaint System Backend running on port ${PORT}`);
-    console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
-  });
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+      console.log(`🚀 Smart Complaint System Backend running on port ${PORT}`);
+      console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
+    });
+  }
 };
 
 startServer();
