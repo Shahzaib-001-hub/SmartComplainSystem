@@ -2,14 +2,25 @@
   "name": "smart-complaint-system",
   "version": "1.0.0",
   "description": "Smart Complaint Management System - MERN Stack",
+  "type": "module",
   "main": "backend/server.js",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
     "start": "node backend/server.js",
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "seed": "node backend/config/seeder.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
